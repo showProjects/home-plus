@@ -1,0 +1,764 @@
+var personalizationSnippet = function() {
+    var defaultUrl = 'https://img.hyperise.io/i/{{image_hash}}.png';
+    var serviceUrl = 'https://app.hyperise.io/snippets/hp/fetch-data';
+    var settingsUrl = 'https://app.hyperise.io/snippets/hp/fetch-settings';
+    var availableParams = JSON.parse('["business_name","business_phone","business_address","website","fb_id","category","title","first_name","last_name","gender","job_title","phone","home_phone","email","employees_range","revenue","custom_text_1","custom_text_2","custom_text_3","custom_text_4","custom_text_5","logo","profile_image","profile_url","custom_image_1","custom_image_2","custom_image_3","country","state","city","street","street2","zip","lat","long","appstore_link"]');
+    availableParams.push('utm_hyperef');
+    availableParams.push('utm_campaign');
+    availableParams.push('utm_source');
+    availableParams.push('utm_medium');
+    availableParams.push('utm_term');
+    availableParams.push('utm_content');
+    var availableSegmentParams = ["utm_campaign", "utm_source", "utm_medium", "utm_term", "utm_content"];
+    var settingsPrepared = false;
+    var settings = {};
+    var accountHash = 'gR8796Xxr';
+    var paramId = 0;
+    var originalId = 0;
+    var dynamicData = {};
+    var dynamicDataApplied = {};
+    var appliedChanges = [];
+    var imageIdUsed = false;
+    var self = null;
+    var novUpdated = false;
+    var formEventAttempt = 0;
+
+    callAjax = function(url, data, callback) {
+        var xmlhttp;
+        xmlhttp = new XMLHttpRequest();
+        xmlhttp.onreadystatechange = function() {
+            if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                callback(xmlhttp.response);
+            }
+        }
+        xmlhttp.open("POST", url, true);
+        xmlhttp.setRequestHeader("Content-Type", "application/json");
+        xmlhttp.send(JSON.stringify(data));
+    }
+
+    fbPixelBlock = function() {
+        var pixelId = settings.pixelId || false;
+        if (!pixelId) {
+            return;
+        }
+        !function(f,b,e,v,n,t,s)
+        {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+        n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+        if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+        n.queue=[];t=b.createElement(e);t.async=!0;
+        t.src=v;s=b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t,s)}(window, document,'script',
+        'https://connect.facebook.net/en_US/fbevents.js');
+        fbq('init', pixelId);
+        fbq('track', 'PageView');
+        fbq('track', 'ViewContent', {
+            content_ids: [originalId],
+            content_type: 'product'
+        });
+
+        document.body.insertAdjacentHTML('beforeend', '<noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=' + pixelId + '&ev=PageView&noscript=1"/></noscript>');
+    }
+
+    function getParams (url) {
+        var params = {};
+        var parser = document.createElement('a');
+        parser.href = url;
+        var query = parser.search.substring(1);
+        var vars = query.split('&');
+        for (var i = 0; i < vars.length; i++) {
+            var pair = vars[i].split('=');
+            if (pair[0] && pair[1] && (availableParams.indexOf(pair[0]) >= 0 || pair[1].substring(0, 8) == 'https://' || pair[1].substring(0, 7) == 'http://')) {
+                params[pair[0]] = url.searchParams.get(pair[0]);
+            }
+        }
+        return params;
+    };
+
+    function getSegmentParams (url) {
+        var params = {};
+        var parser = document.createElement('a');
+        parser.href = url;
+        var query = parser.search.substring(1);
+        var vars = query.split('&');
+        for (var i = 0; i < vars.length; i++) {
+            var pair = vars[i].split('=');
+            if (pair[0] && pair[1] && availableSegmentParams.indexOf(pair[0]) >= 0) {
+                params[pair[0]] = url.searchParams.get(pair[0]);
+            }
+        }
+        params.referrer = document.referrer;
+        var nov = getCookie('whr_nov');
+        params.number_of_visits = nov;
+        return params;
+    };
+
+    function setCookie(name,value,days,path) {
+        var expires = "";
+        if (days) {
+            var date = new Date();
+            date.setTime(date.getTime() + (days*24*60*60*1000));
+            expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + (value || "")  + expires + "; path=" + (path ? path : '/') + "; SameSite=None; Secure";
+    }
+
+    function getCookie(name) {
+        var nameEQ = name + "=";
+        var ca = document.cookie.split(';');
+        for(var i=0;i < ca.length;i++) {
+            var c = ca[i];
+            while (c.charAt(0)==' ') c = c.substring(1,c.length);
+            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+        }
+        return null;
+    }
+
+    function eraseCookie(name) {
+        document.cookie = name+'=; Max-Age=-99999999;';
+    }
+
+    function revertContextItem(item) {
+        if (item.type == 'Image') {
+            if (item.old_content) {
+                jQuery(item.selector).html(item.old_content);
+            } else if (jQuery(item.selector).attr(getImageSourceAttrName(item.selector)) == item.new_src) {
+                jQuery(item.selector).attr(getImageSourceAttrName(item.selector), item.old_src);
+            }
+            if (item.attributes) {
+                for (let i = 0; i < item.attributes.length; i++) {
+                    jQuery(item.selector).attr(item.attributes[i].name, item.attributes[i].old);
+                }
+            }
+        } else if (item.type == 'Text') {
+            if (jQuery(item.selector).html() == item.new_content) {
+                jQuery(item.selector).html(item.old_content);
+            }
+        } else if (item.type == 'Input') {
+            if (jQuery(item.selector).val() == item.new_content) {
+                jQuery(item.selector).val(item.old_content);
+            }
+        } else if (item.type == 'Video') {
+            if (item.new_selector) {
+                jQuery(item.new_selector).replaceWith(item.old_image_html);
+            } else {
+                jQuery(item.selector).html(item.old_content);
+            }
+        }
+    }
+
+    function getImageSourceAttrName(selector) {
+        var objects = jQuery(selector);
+
+        if (objects.length == 0) {
+            return 'src';
+        }
+
+        var nodeName = objects[0].nodeName.toLowerCase();
+        if (nodeName == 'source') {
+            return 'srcset';
+        }
+
+        if (objects.length) {
+            if (jQuery(selector).attr('srcset')) {
+                return 'srcset'
+            } else if (jQuery(selector).attr('src')) {
+                return 'src';
+            }
+        }
+
+        return 'src';
+    }
+
+    function applyContextItem(item, serviceData) {
+        if (item.type == 'Image') {
+            if (serviceData.image_urls[item.image_template_id]) {
+                if (jQuery(item.selector).length > 0) {
+                    if (item.old_content) {
+                        appliedChanges.push({
+                            type: item.type,
+                            selector: item.selector,
+                            old_content: jQuery(item.selector).html(),
+                            new_src: serviceData.image_urls[item.image_template_id],
+                        });
+                        var html = '<img src="' + serviceData.image_urls[item.image_template_id] + '"></img>';
+                        jQuery(item.selector).html(html);
+                    } else {
+                        appliedChanges.push({
+                            type: item.type,
+                            selector: item.selector,
+                            old_src: item.old_image_url,
+                            new_src: serviceData.image_urls[item.image_template_id]
+                        });
+                        var changedAttributes = [];
+                        var srcAttrName = getImageSourceAttrName(item.selector);
+                        jQuery(item.selector).attr(srcAttrName, serviceData.image_urls[item.image_template_id]);
+                        if (jQuery(item.selector).attr('data-' + srcAttrName)) {
+                            jQuery(item.selector).removeAttr('data-' + srcAttrName);
+                        }
+                        if (srcAttrName == 'src') {
+                            let imgAttributes = jQuery(item.selector)[0].attributes;
+                            for (let attrKey in imgAttributes) {
+                                let attrName = imgAttributes[attrKey].name;
+                                let attrValue = imgAttributes[attrKey].value;
+                                if (typeof attrName == 'string' && attrName.indexOf('srcset') >= 0 && attrValue.length > 0) {
+                                    let srcsetParts = attrValue.split(',');
+                                    if (srcsetParts.length > 0) {
+                                        let newSet = [];
+                                        for (let ix = 0; ix < srcsetParts.length; ix++) {
+                                            let part = srcsetParts[ix].split(' ');
+                                            if (part.length > 1) {
+                                                newSet.push(serviceData.image_urls[item.image_template_id] + ' ' + part[part.length - 1]);
+                                            }
+                                        }
+                                        changedAttributes.push({
+                                            'name': attrName,
+                                            'old': jQuery(item.selector).attr(attrName)
+                                        })
+                                        jQuery(item.selector).attr(attrName, newSet.join(', '));
+                                    }
+                                } else if (typeof attrName == 'string' && attrName.indexOf('-src') >= 0 && attrValue.length > 0) {
+                                    changedAttributes.push({
+                                        'name': attrName,
+                                        'old': jQuery(item.selector).attr(attrName)
+                                    })
+                                    jQuery(item.selector).attr(attrName, serviceData.image_urls[item.image_template_id]);
+                                }
+                            }
+                        }
+                        if (changedAttributes.length) {
+                            appliedChanges[appliedChanges.length - 1].attributes = changedAttributes;
+                        }
+                        setTimeout(function() {jQuery(item.selector).attr(getImageSourceAttrName(item.selector), serviceData.image_urls[item.image_template_id]);}, 1000);
+                    }
+                }  else {
+                    item.attempt = item.attempt ? item.attempt + 1 : 1;
+                    if (item.attempt <= 5) {
+                        setTimeout(applyContextItem, 1000 * item.attempt, item, serviceData);
+                    }
+                }
+                if (settings.hasOwnProperty('imageId')
+                        && settings.imageId
+                        && serviceData.image_hashes[item.image_template_id] == settings.imageTemplate) {
+                    appliedChanges.push({
+                        type: item.type,
+                        selector: '#' + settings.imageId,
+                        old_src: jQuery('#' + settings.imageId).attr(getImageSourceAttrName('#' + settings.imageId)),
+                        new_src: serviceData.image_urls[item.image_template_id]
+                    });
+                    jQuery('#' + settings.imageId).attr(getImageSourceAttrName('#' + settings.imageId), serviceData.image_urls[item.image_template_id]);
+                }
+            }
+        } else if (item.type == 'Video' && item.old_image_url) {
+            if (serviceData.video_urls[item.video_template_id]) {
+                if (jQuery(item.selector).length > 0) {
+                    appliedChanges.push({
+                        type: item.type,
+                        selector: item.selector,
+                        old_src: item.old_image_url,
+                        new_src: serviceData.video_urls[item.video_template_id],
+                        new_selector: '#hr_video_' + item.video_template_id,
+                        old_image_html: jQuery('<div>').append(jQuery(item.selector).clone()).html(),
+                    });
+                    var html = '<iframe id="hr_video_' + item.video_template_id +'" class="' + jQuery(item.selector).attr('class')  + '" allowfullscreen="true" frameborder="0" width="' + jQuery(item.selector).width() + 'px" height="' + jQuery(item.selector).height() + 'px" src="' + serviceData.video_urls[item.video_template_id] + '"></iframe>';
+                    jQuery(item.selector).replaceWith(html);
+                } else {
+                    item.attempt = item.attempt ? item.attempt + 1 : 1;
+                    if (item.attempt <= 5) {
+                        setTimeout(applyContextItem, 1000 * item.attempt, item, serviceData);
+                    }
+                }
+            }
+        }
+        else if (item.type == 'Video') {
+            if (serviceData.video_urls[item.video_template_id]) {
+                if (jQuery(item.selector).length > 0) {
+                    appliedChanges.push({
+                        type: item.type,
+                        selector: item.selector,
+                        old_content: jQuery(item.selector).html(),
+                        new_src: serviceData.video_urls[item.video_template_id],
+                    });
+                    var html = '<iframe id="hr_video_' + item.video_template_id +'" allowfullscreen="true" frameborder="0" width="' + jQuery(item.selector).width() + 'px" height="' + jQuery(item.selector).height() + 'px" src="' + serviceData.video_urls[item.video_template_id] + '"></iframe>';
+                    jQuery(item.selector).html(html);
+                }
+            } else {
+                item.attempt = item.attempt ? item.attempt + 1 : 1;
+                if (item.attempt <= 5) {
+                    setTimeout(applyContextItem, 1000 * item.attempt, item, serviceData);
+                }
+            }
+        }
+        else if (item.type == 'Text') {
+
+            if (jQuery(item.selector).length > 0) {
+                let newContent = prepareNewContent(item.new_content, serviceData.dynamic_data, serviceData.dynamic_data_applied);
+                if (newContent != item.new_content || newContent.indexOf('{') == -1) {
+                    jQuery(item.selector).html(newContent);
+                } else {
+                    newContent = item.old_content;
+                }
+                appliedChanges.push({
+                    type: item.type,
+                    selector: item.selector,
+                    old_content: item.old_content,
+                    new_content: newContent
+                });
+            }  else {
+                item.attempt = item.attempt ? item.attempt + 1 : 1;
+                if (item.attempt <= 5) {
+                    setTimeout(applyContextItem, 1000 * item.attempt, item, serviceData);
+                }
+            }
+        } else if (item.type == 'Input') {
+            let newContent = prepareNewContent(item.new_content, serviceData.dynamic_data, serviceData.dynamic_data_applied);
+            appliedChanges.push({
+                type: item.type,
+                selector: item.selector,
+                old_content: item.old_content,
+                new_content: newContent
+            });
+            jQuery(item.selector).val(newContent);
+        }
+    }
+
+    function prepareNewContent(newContent, dynamicData, dynamicDataApplied) {
+        for (key in dynamicData) {
+            if (dynamicDataApplied.hasOwnProperty(key) && dynamicDataApplied[key] == true) {
+                var macroField = "\{\{" + key + "\}\}";
+                newContent = newContent.replace(new RegExp(macroField, 'g'), dynamicData[key]);
+            }
+        }
+        return newContent;
+    }
+
+    imageBlock = function(url) {
+        var imageId = settings.imageId ? settings.imageId : 'hyperiseImage1';
+        document.getElementById(imageId).src = url;
+        return true;
+    }
+
+    function replaceMacroNodes(parent) {
+        if (parent.nodeType == 1 && parent.outerHTML.indexOf("\{\{") != -1) {
+            var oldValue = parent.outerHTML;
+            for (key in dynamicData) {
+                var macroField = "\{\{" + key + "\}\}";
+                oldValue = oldValue.replace(new RegExp(macroField, 'g'), dynamicData[key]);
+            }
+            if (parent.outerHtml != oldValue) {
+                parent.outerHTML = oldValue;
+            }
+        }
+
+        if (parent.nodeType == 3 && parent.nodeValue.indexOf("\{\{") != -1) {
+            for (key in dynamicData) {
+                var macroField = "\{\{" + key + "\}\}";
+                parent.nodeValue = parent.nodeValue.replace(new RegExp(macroField, 'g'), dynamicData[key]);
+            }
+        }
+        if (parent.childNodes.length == 0) {
+            return;
+        }
+        for (var i = 0; i < parent.childNodes.length; i++) {
+            replaceMacroNodes(parent.childNodes[i]);
+        }
+    }
+
+    function isExtensionActivated() {
+        var bodyClass = jQuery('body:first').attr('class');
+        if (!bodyClass) return false;
+        var classList = bodyClass.split(/\s+/);
+        if (classList && classList.includes('extension-active')) {
+            return true;
+        }
+        return false;
+    }
+
+    function serialize(obj) {
+        var items = [];
+        for (var p in obj) {
+            if (obj.hasOwnProperty(p)) {
+                items.push(encodeURIComponent(p) + "=" + encodeURIComponent(obj[p]));
+            }
+        }
+        return items.join("&");
+    }
+
+    function serializeExt(obj) {
+        var items = [];
+        for (var p in obj) {
+            if (obj.hasOwnProperty(p)) {
+                items.push(p + "=" + obj[p]);
+            }
+        }
+        return items.join("&");
+    }
+
+    function checkParamsIsEmpty(href) {
+        if (href.split('?').length == 1 || !href.split('?')[1].length) {
+            return true;
+        }
+
+        var url = new URL(href);
+        var isNotEmpty = false;
+        url.searchParams.forEach(function(value, key) {
+            if (value && availableParams.indexOf(key) >= 0) {
+                isNotEmpty = true;
+                return;
+            }
+        });
+
+        return !isNotEmpty;
+    }
+
+    function needReset(oldParams, newParams) {
+        if (newParams.utm_hyperef && newParams.utm_hyperef != oldParams.utm_hyperef) {
+            return true;
+        }
+        if (newParams.email && newParams.email != oldParams.email) {
+            return true;
+        }
+        if (newParams.email && oldParams.utm_hyperef && oldParams.utm_hyperef.indexOf('@') >= 0 && newParams.email != oldParams.utm_hyperef) {
+            return true;
+        }
+        if (oldParams.email && newParams.utm_hyperef && newParams.utm_hyperef.indexOf('@') >= 0 && oldParams.email != newParams.utm_hyperef) {
+            return true;
+        }
+        return false;
+    }
+
+    function run() {
+        var href = window.location.href;
+        var fromCookies = getCookie('wsp_qs');
+        if (!fromCookies) {
+            fromCookies = '';
+        }
+        if (checkParamsIsEmpty(href)) {
+            if (fromCookies) {
+                href = href.split('?')[0].split('#')[0] + '?' + fromCookies;
+            }
+        } else {
+            var fromCookiesParams = {};
+            if (fromCookies) {
+                var parts = fromCookies.split('&');
+                for (var i = 0; i < parts.length; i++) {
+                    var pair = parts[i].split('=');
+                    if (pair[0] && pair[1] && availableParams.indexOf(pair[0]) >= 0) {
+                        fromCookiesParams[pair[0]] = pair[1];
+                    }
+                }
+            }
+            var url = new URL(href);
+            var newParams = {};
+            url.searchParams.forEach(function(value, key) {
+                if (value && availableParams.indexOf(key) >= 0) {
+                    newParams[key] = encodeURIComponent(value);
+                }
+            });
+            if (needReset(fromCookiesParams, newParams)) {
+                setCookie('wsp_qs', serializeExt(newParams), 365);
+            } else {
+                for(var key in  newParams) {
+                    fromCookiesParams[key] = newParams[key];
+
+                    if (key == 'utm_hyperef' && newParams[key].indexOf('@') >= 0) {
+                        if (fromCookiesParams.hasOwnProperty('email')) {
+                            delete fromCookiesParams.email;
+                        }
+                    }
+                }
+                var queryString = serializeExt(fromCookiesParams);
+                setCookie('wsp_qs', queryString, 365);
+                href = href.split('?')[0].split('#')[0] + '?' + queryString;
+            }
+        }
+
+        process(href);
+    }
+
+    function runManually(fields) {
+        var href = window.location.href;
+
+        var fromCookies = getCookie('wsp_qs');
+        if (!fromCookies) {
+                fromCookies = '';
+        }
+        var fromCookiesParams = {};
+        if (fromCookies) {
+            var parts = fromCookies.split('&');
+            for (var i = 0; i < parts.length; i++) {
+                var pair = parts[i].split('=');
+                if (pair[0] && pair[1] && availableParams.indexOf(pair[0]) >= 0) {
+                    fromCookiesParams[pair[0]] = pair[1];
+                }
+            }
+        }
+
+        var newParams = {}
+        for(var key in  fields) {
+            if (fields[key] && availableParams.indexOf(key) >= 0) {
+                newParams[key] = encodeURIComponent(fields[key]);
+            }
+        }
+        if (needReset(fromCookiesParams, newParams)) {
+            var queryString = serializeExt(newParams);
+            setCookie('wsp_qs', queryString, 365);
+            href = href.split('?')[0].split('#')[0] + '?' + queryString;
+        } else {
+            for(var key in  newParams) {
+                fromCookiesParams[key] = newParams[key];
+
+                if (key == 'email') {
+                    if (fromCookiesParams.hasOwnProperty('utm_hyperef') && fromCookiesParams['utm_hyperef'].indexOf('@') >= 0) {
+                        delete fromCookiesParams.utm_hyperef;
+                    }
+                }
+            }
+            var queryString = serializeExt(fromCookiesParams);
+            setCookie('wsp_qs', queryString, 365);
+            href = href.split('?')[0].split('#')[0] + '?' + queryString;
+        }
+        process(href);
+    }
+
+    function process(href) {
+        console.log('HREF', href);
+        imageIdUsed = false;
+        var ipLookup = settings.hasOwnProperty('ipLookup') ? settings.ipLookup : false;
+        if (!ipLookup && checkParamsIsEmpty(href)) {
+            return;
+        }
+        var url = new URL(href);
+        originalId = url.searchParams.get("utm_hyperef") || '';
+        if (!originalId) {
+            originalId = url.searchParams.get("email") || '';
+        }
+        if (!originalId) {
+            originalId = url.searchParams.get("website") || '';
+        }
+
+        var data = {
+            id: originalId,
+            domain: url.host,
+            page: url.pathname,
+            account_hash: accountHash,
+            image_hash: settings.imageTemplate || '',
+            ip_lookup: ipLookup,
+            href: location.href,
+            params: getParams(url),
+            segment_params: getSegmentParams(url)
+        }
+        callAjax(serviceUrl, data, function(response) {
+            if (isExtensionActivated()) {
+                return;
+            }
+            var serviceData = JSON.parse(response);
+            if (serviceData.href && serviceData.href.length > 0) {
+                    setCookie('wsp_qs', serviceData.href, 365);
+            }
+            self.personalized = serviceData.dynamic_data;
+            if (serviceData.version == 1) {
+                imageBlock(serviceData.url);
+                if (serviceData.dynamic_data) {
+                    dynamicData = serviceData.dynamic_data;
+                    for (var i = 0; i < document.body.childNodes.length; i++) {
+                        replaceMacroNodes(document.body.childNodes[i]);
+                    }
+                    if (settings.onComplete) {
+                        settings.onComplete(self.personalized);
+                    }
+                }
+            } else {
+                if (serviceData.status == 'success') {
+                    if (settings.onComplete) {
+                        settings.onComplete(self.personalized);
+                    }
+                    for (var contextIndex = 0; contextIndex < serviceData.context.length; contextIndex++) {
+                        applyContextItem(serviceData.context[contextIndex], serviceData);
+                    }
+                    if (settings.hasOwnProperty('imageId')
+                        && settings.imageId
+                        && settings.hasOwnProperty('imageTemplate') && settings.imageTemplate) {
+                            for (var index in serviceData.image_hashes) {
+                                if (serviceData.image_hashes.hasOwnProperty(index) && serviceData.image_hashes[index] == settings.imageTemplate) {
+                                    appliedChanges.push({
+                                        type: 'Image',
+                                        selector: '#' + settings.imageId,
+                                        old_src: jQuery('#' + settings.imageId).attr(getImageSourceAttrName('#' + settings.imageId)),
+                                        new_src: serviceData.image_urls[index]
+                                    });
+                                    jQuery('#' + settings.imageId).attr(getImageSourceAttrName('#' + settings.imageId), serviceData.image_urls[index]);
+                                }
+                            }
+                    }
+
+                    if (serviceData.dynamic_data) {
+                        dynamicData = serviceData.dynamic_data;
+                        for (var i = 0; i < document.body.childNodes.length; i++) {
+                            replaceMacroNodes(document.body.childNodes[i]);
+                        }
+                    }
+                }
+            }
+
+            if (serviceData.default_image_url) {
+                if (jQuery('#hyper-campaign-tracking-img').length == 0) {
+                    jQuery('body').append('<img id="hyper-campaign-tracking-img" style="width: 1px; height: 1px; display: none;">');
+                }
+                jQuery('#hyper-campaign-tracking-img').attr('src', serviceData.default_image_url);
+            }
+
+            if (originalId) {
+                fbPixelBlock();
+            }
+            if (self.formSelector) {
+                if (document.querySelector(self.formSelector)) {
+                    document.querySelector(self.formSelector).removeEventListener("submit", hyperiseFormSubmitListener);
+                }
+                hyperiseAttachFormSubmitEvent(self.formSelector, 5);
+            }
+        });
+    }
+
+    function innerInit(params) {
+        for (var prop in params) {
+            settings[prop] = params[prop];
+        }
+
+        if (isExtensionActivated()) {
+            return;
+        }
+        if (jQuery.fn.on) {
+            jQuery(document).on('mouseover', '.hyperise-extension-top', function() {
+                if (appliedChanges.length == 0) {
+                    return;
+                }
+                for (var index = 0; index < appliedChanges.length; index++) {
+                    revertContextItem(appliedChanges[index]);
+                }
+                appliedChanges = [];
+            });
+        }
+        let autoStart = settings.hasOwnProperty('autoStart') ? settings.autoStart : true;
+        if (autoStart) {
+            run();
+        }
+    }
+
+    function initNumberOfVisits() {
+        if (novUpdated) {
+            return;
+        }
+        var nov = getCookie('whr_nov');
+        if (!nov) {
+            nov = 0;
+        }
+        nov++;
+
+        var url = new URL(location.href);
+        setCookie('whr_nov', nov, 365, url.pathname);
+        novUpdated = true;
+    }
+
+    this.init = function(params) {
+        self = this;
+        if(!params) {
+            params = {}
+        }
+        initNumberOfVisits();
+        if (typeof jQuery == 'undefined') {
+            var script = document.createElement("SCRIPT");
+            script.src = 'https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js';
+            script.type = 'text/javascript';
+            script.onload = function() {
+                prepareSettings(function() {
+                    innerInit(params);
+                });
+            };
+            document.getElementsByTagName("head")[0].appendChild(script);
+        } else {
+            prepareSettings(function() {
+                innerInit(params);
+            });
+        }
+    }
+
+    this.personalize = function(params) {
+        self = this;
+        initNumberOfVisits();
+        if (typeof jQuery == 'undefined') {
+            var script = document.createElement("SCRIPT");
+            script.src = 'https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js';
+            script.type = 'text/javascript';
+            script.onload = function() {
+                prepareSettings(function() {
+                    runManually(params);
+                });
+            };
+            document.getElementsByTagName("head")[0].appendChild(script);
+        } else {
+            prepareSettings(function() {
+                runManually(params);
+            });
+        }
+    }
+
+    this.revert = function() {
+        for (var index = 0; index < appliedChanges.length; index++) {
+            revertContextItem(appliedChanges[index]);
+        }
+        console.log('REVERTED');
+    }
+
+    this.personalized = {};
+    this.formSelector = '';
+    this.formElements = [];
+
+    prepareSettings = function(callback) {
+        if (settingsPrepared) {
+            callback();
+        }
+        var url = new URL(location.href);
+
+        var data = {
+            domain: url.host,
+            page: url.protocol + '//' + url.host + url.pathname,
+            account_hash: accountHash
+        }
+        callAjax(settingsUrl, data, function(response) {
+            settings = JSON.parse(response);
+            settingsPrepared = true;
+            if (settings.form_selector) {
+                self.formSelector = settings.form_selector;
+                self.formElements = settings.form_elements;
+                hyperiseAttachFormSubmitEvent(self.formSelector);
+            } else {
+                self.formSelector = '';
+                self.formElements = [];
+            }
+            callback();
+        });
+    }
+}
+
+function hyperiseAttachFormSubmitEvent(selector, attempt) {
+    if (attempt <= 0) {
+        return;
+    }
+    if (document.querySelector(selector)) {
+        document.querySelector(selector).addEventListener("submit", hyperiseFormSubmitListener);
+    } else {
+        setTimeout(function() {
+            hyperiseAttachFormSubmitEvent(selector, attempt - 1)
+        }, 1000);
+    }
+}
+
+var hyperise = new personalizationSnippet();
+
+function hyperiseFormSubmitListener(e) {
+    var fields = {};
+    for (var index = 0; index < hyperise.formElements.length; index++) {
+        fields[hyperise.formElements[index].tag] = document.querySelector(hyperise.formElements[index].path).value;
+    }
+    hyperise.personalize(fields);
+}

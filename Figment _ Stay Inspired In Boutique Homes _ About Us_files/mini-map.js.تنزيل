@@ -1,0 +1,2 @@
+var icon='./img/Pin-inactive.svg';var maps=[document.getElementById('detail-desktop-map'),document.getElementById('detail-mobile-map')];var center={lat:-25.348,lng:131.039};function initDetailMap(){var map=new google.maps.Map(this,{center:center,zoom:15,fullscreenControl:!1});var marker=new google.maps.Marker({position:center,icon:'/img/Pin-inactive.svg',map:map})}
+function initDetailMaps(){$.each(maps,initDetailMap)}
