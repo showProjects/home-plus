@@ -1,3 +1,8 @@
+ @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300&display=swap');
+ 
+ @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+ @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap');
+
 .navbar-brand1 {
   padding-top: var(--bs-navbar-brand-padding-y);
   padding-bottom: var(--bs-navbar-brand-padding-y);
@@ -8,3 +13,249 @@
   white-space: nowrap;
   
 }
+
+.hero__text{
+  font-family: 'Poppins', sans-serif;
+}
+ 
+
+
+/* show hide text start */
+
+/* button{
+    outline: 0;
+    border: 0;
+    background-color: transparent;
+} */
+.question-text{
+  display: none;
+  
+}
+.question-text p{
+line-height: 1.3;
+
+  
+}
+.question-text-big p{
+  padding-top: .6rem;
+  line-height: 1.6 !important;
+  font-weight: 400;
+
+}
+.question-text-big p{
+ 
+  width: 90%;
+
+}
+
+.show-text .question-text{
+  display: block;
+}
+
+.minus-icon{
+  
+  display: none;
+}
+
+.show-text .minus-icon{
+  display: inline;
+}
+
+.show-text .plus-icon{
+  display: none;
+}
+/* show hide text end */
+.small-screen {
+  display: none !important;
+}
+.big-screen {
+  display: block !important;
+}
+
+
+@media (max-width: 1100px){
+.small-screen {
+ display: block !important;
+}
+.big-screen {
+  display: none !important;
+}}
+
+.vl {
+  padding-left: 20px;
+  content: "gggggggggggg";
+  border-left: 1px solid black;
+  height: 160px;
+}
+
+
+
+.switch-lang-button{
+  border: 0;
+
+}
+
+.question-title{
+  font-size: 1.4rem;
+}
+
+.question-title i{
+
+  font-size:1rem;
+  padding-right: 1rem;
+  padding-left: 1rem;
+
+}
+
+.question-title button{
+
+  line-height: 2;
+  font-weight: 400;
+}
+
+.fa-arrow-right-long{
+  /* display: none; */
+  visibility: hidden;
+}
+
+.show-arrow  {
+  /* display: block; */
+  visibility: visible;
+}
+
+
+.properties h1{
+ 
+    /* font-family: Montserrat; */
+    font-size: 45px;
+    font-weight: 300;
+    color: #3d3d3d;
+    line-height: 45px;
+}
+.btn {
+  
+  background-color: transparent!important;
+  border-color:#7f0000!important;
+  border-width: 2px;
+  color: black !important;
+  box-shadow: 0 0 0 0rem rgb(243, 245, 247);
+  /* border-radius: 0; */
+
+}
+.btn-custom:hover{
+  background-color: #7f0000!important;
+
+
+}
+
+
+.properties p {
+  font-weight: normal;
+  color: #3d3d3d;
+  line-height: 20px;}
+
+  .display-4 {
+    font-weight: 400!important;
+    line-height: 1.2;
+    font-family: 'Montserrat', sans-serif;
+  }
+  
+
+
+  .navbar {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    background-color: white!important;
+  
+  }
+  .cid-tDiulUOcLF .dropdown-menu,
+  .cid-tDiulUOcLF .navbar.opened {
+    background: #fff !important;
+  }
+  .phont1{
+    font-family: 'Montserrat', sans-serif!important;
+
+  }
+
+  
+.cid-tDlZAWzw8w {
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+  background-color: whitesmoke;
+}
+.size1{
+  max-width: 400px;
+}
+
+
+/* contact-us start */
+.contact-us {
+  padding-top: 4rem;
+  display: flex;
+  justify-content: center;
+  text-align: center;
+}
+.contact-us-sections {
+ 
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+  
+}
+
+.contact-form {
+  background: #fff;
+  width: 700px;
+
+  min-width: 300px;
+
+  padding: 3rem;
+  border-radius: 10px;
+  box-shadow: 0 5px 25px rgba(1 1 1 / 15%);
+}
+
+.contact-form h3 {
+  font-size: 1.6em;
+  font-weight: 600;
+  text-align: center;
+  /* margin-bottom: 40px; */
+  color: #444;
+}
+
+.contact-form .input-box {
+  position: relative;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.contact-form .input-box input,
+.contact-form .input-box textarea {
+  color:  #7f0000!important;
+  width: 100%;
+  padding: 10px;
+  font-size: 1em;
+  font-weight: 400;
+  outline: none;
+  border: 1px solid #505962;
+  border-radius: 5px;
+  resize: none;
+}
+
+.contact-form .input-box .send-btn {
+  color: #fff!important;
+  background:#7f0000!important;
+  display: inline-block;
+  font-size: 1.1em;
+  font-weight: 500;
+  letter-spacing: 2px;
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  transition: 0.5s ease;
+}
+
+
